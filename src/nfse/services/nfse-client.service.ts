@@ -1,6 +1,7 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 
 type Ambiente = 1 | 2;
 interface NfseClientInstance {
@@ -21,28 +22,60 @@ interface OpenNfseModule {
  * Wrapper da biblioteca open-nfse (ESM) carregada via dynamic import.
  * Isola a lib terceira da camada de controllers, seguindo o padrao
  * NfeLibraryAdapter do costume-rental-nfe (Java).
+ *
+ * A inicializacao do NfseClient eh lazy: a app sobe mesmo sem certificado
+ * (util para health checks e ambientes locais). O certificado so eh lido
+ * na primeira chamada que de fato precisa da lib.
  */
 @Injectable()
-export class NfseClientService implements OnModuleInit {
+export class NfseClientService {
   private readonly logger = new Logger(NfseClientService.name);
   private client: NfseClientInstance | null = null;
+  private initializing: Promise<NfseClientInstance> | null = null;
 
   constructor(private readonly configService: ConfigService) {}
 
-  async onModuleInit(): Promise<void> {
-    await this.initializeClient();
+  async consultarNfse(chaveAcesso: string): Promise<unknown> {
+    const client = await this.getClient();
+    return client.fetchByChave(chaveAcesso);
   }
 
-  private async initializeClient(): Promise<void> {
+  async emitirNfse(params: unknown): Promise<unknown> {
+    const client = await this.getClient();
+    return client.emitir(params);
+  }
+
+  async cancelarNfse(params: unknown): Promise<unknown> {
+    const client = await this.getClient();
+    return client.cancelar(params);
+  }
+
+  private async getClient(): Promise<NfseClientInstance> {
+    if (this.client) return this.client;
+    if (this.initializing) return this.initializing;
+    this.initializing = this.initializeClient();
+    try {
+      this.client = await this.initializing;
+      return this.client;
+    } finally {
+      this.initializing = null;
+    }
+  }
+
+  private async initializeClient(): Promise<NfseClientInstance> {
     const certPath = this.configService.getOrThrow<string>('NFSE_CERT_PATH');
     const certPassword = this.configService.getOrThrow<string>('NFSE_CERT_PASSWORD');
     const ambienteStr = this.configService.get<string>('NFSE_AMBIENTE', '2');
     const ambiente: Ambiente = ambienteStr === '1' ? 1 : 2;
 
+    if (!existsSync(certPath)) {
+      throw new Error(`Certificado nao encontrado em '${certPath}' — verifique NFSE_CERT_PATH e o volume /certs`);
+    }
+
     const openNfse = (await import('open-nfse')) as unknown as OpenNfseModule;
     const pfx = readFileSync(certPath);
 
-    this.client = new openNfse.NfseClient({
+    const client = new openNfse.NfseClient({
       ambiente: ambiente === 1 ? openNfse.Ambiente.Producao : openNfse.Ambiente.ProducaoRestrita,
       certificado: { pfx, password: certPassword },
       dpsCounter: openNfse.createInMemoryDpsCounter(),
@@ -50,26 +83,6 @@ export class NfseClientService implements OnModuleInit {
     });
 
     this.logger.log(`NfseClient inicializado (ambiente=${ambiente === 1 ? 'producao' : 'homologacao'})`);
-  }
-
-  async consultarNfse(chaveAcesso: string): Promise<unknown> {
-    this.ensureClient();
-    return this.client!.fetchByChave(chaveAcesso);
-  }
-
-  async emitirNfse(params: unknown): Promise<unknown> {
-    this.ensureClient();
-    return this.client!.emitir(params);
-  }
-
-  async cancelarNfse(params: unknown): Promise<unknown> {
-    this.ensureClient();
-    return this.client!.cancelar(params);
-  }
-
-  private ensureClient(): void {
-    if (!this.client) {
-      throw new Error('NfseClient nao inicializado — verifique NFSE_CERT_PATH e NFSE_CERT_PASSWORD');
-    }
+    return client;
   }
 }
