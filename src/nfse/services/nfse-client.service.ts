@@ -13,6 +13,8 @@ import type {
   EmitirParams,
   EmitirResult,
   IndicadorTotalTributos,
+  OpcaoSimplesNacional,
+  RegimeApuracaoSimplesNacional,
   TomadorInput,
   ValoresInput,
 } from 'open-nfse';
@@ -176,10 +178,10 @@ export class NfseClientService {
       vServ: request.vServ,
       ...this.aliquotaIss(request, issuer),
     };
-    if (issuer.simpleNationalOption === '2') {
+    if (issuer.simpleNationalOption === ('2' as OpcaoSimplesNacional)) {
       return { ...valores, indTotTrib: '0' as IndicadorTotalTributos };
     }
-    if (issuer.simpleNationalOption === '3') {
+    if (issuer.simpleNationalOption === ('3' as OpcaoSimplesNacional)) {
       return {
         ...valores,
         pTotTribSN: request.pTotTribSN ?? issuer.totalTaxRate ?? 0,
@@ -212,10 +214,11 @@ export class NfseClientService {
     request: EmitirNfseRequest,
     issuer: SharedFiscalIssuer,
   ): { aliqIss?: number } {
-    const mei = issuer.simpleNationalOption === '2';
+    const mei = issuer.simpleNationalOption === ('2' as OpcaoSimplesNacional);
     const meEppSimples =
-      issuer.simpleNationalOption === '3' &&
-      issuer.simpleNationalAssessmentRegime === '1';
+      issuer.simpleNationalOption === ('3' as OpcaoSimplesNacional) &&
+      issuer.simpleNationalAssessmentRegime ===
+        ('1' as RegimeApuracaoSimplesNacional);
     if (mei || meEppSimples) return {};
     const aliqIss = request.aliqIss ?? issuer.issRate;
     return aliqIss == null ? {} : { aliqIss };

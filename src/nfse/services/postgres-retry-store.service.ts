@@ -38,7 +38,7 @@ export class PostgresRetryStoreService implements RetryStore {
       firstAttemptAt: new Date(String(payload['firstAttemptAt'])),
       lastAttemptAt: new Date(String(payload['lastAttemptAt'])),
       notBefore: payload['notBefore']
-        ? new Date(String(payload['notBefore']))
+        ? new Date(payload['notBefore'] as string)
         : undefined,
     } as unknown as PendingEvent;
   }

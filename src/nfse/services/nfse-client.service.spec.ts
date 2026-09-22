@@ -35,12 +35,10 @@ class EmptyNfseConfig {
 }
 
 class FakeSharedFiscalIssuerService {
-  constructor(
-    private readonly issuer: SharedFiscalIssuer = sharedIssuer,
-  ) {}
+  constructor(private readonly issuer: SharedFiscalIssuer = sharedIssuer) {}
 
-  async getActive(): Promise<SharedFiscalIssuer> {
-    return this.issuer;
+  getActive(): Promise<SharedFiscalIssuer> {
+    return Promise.resolve(this.issuer);
   }
 }
 
@@ -49,21 +47,23 @@ class FakeNfseClient {
 
   constructor(private readonly result: EmitirResult | Error) {}
 
-  async emitir(params: EmitirParams): Promise<EmitirResult> {
+  emitir(params: EmitirParams): Promise<EmitirResult> {
     this.emitted = params;
-    if (this.result instanceof Error) throw this.result;
-    return this.result;
+    if (this.result instanceof Error) return Promise.reject(this.result);
+    return Promise.resolve(this.result);
   }
 
-  async fetchByChave(): Promise<unknown> {
-    return {};
+  fetchByChave(): Promise<unknown> {
+    return Promise.resolve({});
   }
 
-  async cancelar(): Promise<unknown> {
-    return {};
+  cancelar(): Promise<unknown> {
+    return Promise.resolve({});
   }
 
-  async close(): Promise<void> {}
+  close(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 const authorizedResult = {
@@ -236,14 +236,10 @@ describe('NfseClientService', () => {
   });
 
   it('retorna 503 quando o certificado compartilhado não está montado', async () => {
-    await expect(
-      createService().emitirNfse(buildRequest()),
-    ).rejects.toMatchObject({
-      status: 503,
-      response: expect.objectContaining({
-        message: expect.stringContaining('/certs/missing.pfx'),
-      }),
-    });
+    const promise = createService().emitirNfse(buildRequest());
+
+    await expect(promise).rejects.toMatchObject({ status: 503 });
+    await expect(promise).rejects.toThrow('/certs/missing.pfx');
   });
 
   it('retorna 503 quando o certificado está indisponível', async () => {

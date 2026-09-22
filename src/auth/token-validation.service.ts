@@ -13,7 +13,10 @@ export class TokenValidationService {
 
   constructor(configService: ConfigService) {
     this.secret = configService.getOrThrow<string>('RENTFIT_JWT_SECRET');
-    this.issuer = configService.get<string>('RENTFIT_JWT_ISSUER', 'rentafit-api');
+    this.issuer = configService.get<string>(
+      'RENTFIT_JWT_ISSUER',
+      'rentafit-api',
+    );
   }
 
   validate(token: string): string {

@@ -28,4 +28,4 @@ async function bootstrap(): Promise<void> {
   new Logger('Bootstrap').log(`costume-rental-nfse listening on :${port}`);
 }
 
-bootstrap();
+void bootstrap();
