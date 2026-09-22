@@ -174,7 +174,7 @@ export class NfseClientService {
   ): ValoresInput {
     const valores: ValoresInput = {
       vServ: request.vServ,
-      aliqIss: request.aliqIss ?? issuer.issRate,
+      ...this.aliquotaIss(request, issuer),
     };
     if (issuer.simpleNationalOption === '2') {
       return { ...valores, indTotTrib: '0' as IndicadorTotalTributos };
@@ -201,6 +201,24 @@ export class NfseClientService {
         pTotTribMun: municipal,
       },
     };
+  }
+
+  // E0600/E0625: MEI e ME/EPP com ISSQN apurado pelo Simples Nacional
+  // (regApTribSN=1, sem retenção nem benefício municipal de isenção/alíquota
+  // diferenciada) não podem informar alíquota — ela é parametrizada pelo
+  // Sistema Nacional. Emitir `undefined` omite o <pAliq> do XML; qualquer
+  // valor definido (inclusive 0) serializa o campo e é rejeitado.
+  private aliquotaIss(
+    request: EmitirNfseRequest,
+    issuer: SharedFiscalIssuer,
+  ): { aliqIss?: number } {
+    const mei = issuer.simpleNationalOption === '2';
+    const meEppSimples =
+      issuer.simpleNationalOption === '3' &&
+      issuer.simpleNationalAssessmentRegime === '1';
+    if (mei || meEppSimples) return {};
+    const aliqIss = request.aliqIss ?? issuer.issRate;
+    return aliqIss == null ? {} : { aliqIss };
   }
 
   private toTomador(request: EmitirNfseRequest): TomadorInput | undefined {

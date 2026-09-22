@@ -141,13 +141,14 @@ describe('NfseClientService', () => {
         descricao: 'Serviço de teste',
         codMunicipioPrestacao: '3548906',
       },
-      valores: { vServ: 800, aliqIss: 0, pTotTribSN: 6 },
+      valores: { vServ: 800, pTotTribSN: 6 },
       tomador: {
         documento: { CPF: '98765432100' },
         nome: 'Maria Souza',
         email: 'maria@example.com',
       },
     });
+    expect(fakeClient.emitted?.valores).not.toHaveProperty('aliqIss');
     expect(response).toEqual({
       status: 'AUTHORIZED',
       accessKey: '12345678901234567890123456789012345678901234567890',
@@ -185,6 +186,39 @@ describe('NfseClientService', () => {
     expect(fakeClient.emitted?.emitente).not.toHaveProperty(
       'inscricaoMunicipal',
     );
+  });
+
+  // E0625: ME/EPP com ISSQN apurado pelo Simples não pode informar alíquota.
+  it('omite a alíquota de ISS para ME/EPP apurado pelo Simples Nacional', async () => {
+    const fakeClient = new FakeNfseClient(authorizedResult);
+    const service = createService(fakeClient);
+
+    await service.emitirNfse(buildRequest());
+
+    expect(fakeClient.emitted?.valores).not.toHaveProperty('aliqIss');
+  });
+
+  it('envia a alíquota de ISS quando o emitente não é optante do Simples', async () => {
+    const fakeClient = new FakeNfseClient(authorizedResult);
+    const service = createService(fakeClient, {
+      ...sharedIssuer,
+      simpleNationalOption: '1',
+      simpleNationalAssessmentRegime: '0',
+    });
+    const request = Object.assign(buildRequest(), {
+      aliqIss: 2.5,
+      pTotTribSN: undefined,
+      pTotTribFed: 8,
+      pTotTribEst: 3,
+      pTotTribMun: 1.5,
+    });
+
+    await service.emitirNfse(request);
+
+    expect(fakeClient.emitted?.valores).toMatchObject({
+      aliqIss: 2.5,
+      pTotTrib: { pTotTribFed: 8, pTotTribEst: 3, pTotTribMun: 1.5 },
+    });
   });
 
   it('envia a IM do prestador quando o emitente habilita o envio (sendIm=true)', async () => {
