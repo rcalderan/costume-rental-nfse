@@ -26,7 +26,9 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const token = this.extractToken(request);
     if (!token) {
-      throw new UnauthorizedException('Authorization header ausente ou malformado');
+      throw new UnauthorizedException(
+        'Authorization header ausente ou malformado',
+      );
     }
     const subject = this.tokenValidation.validate(token);
     request.user = subject;

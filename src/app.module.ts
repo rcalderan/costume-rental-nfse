@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { getTypeOrmConfig } from './config/database.config';
+import {
+  getNfeConfigTypeOrmConfig,
+  getTypeOrmConfig,
+} from './config/database.config';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { NfseModule } from './nfse/nfse.module';
@@ -16,6 +19,12 @@ import { NfseModule } from './nfse/nfse.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: getTypeOrmConfig,
+    }),
+    TypeOrmModule.forRootAsync({
+      name: 'nfe-config',
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: getNfeConfigTypeOrmConfig,
     }),
     HealthModule,
     AuthModule,

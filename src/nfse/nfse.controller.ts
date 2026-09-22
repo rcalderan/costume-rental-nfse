@@ -3,6 +3,7 @@ import { NfseClientService } from './services/nfse-client.service';
 import { EmitirNfseRequest } from './dto/emitir-nfse.request';
 import { ConsultarNfseRequest } from './dto/consultar-nfse.request';
 import { CancelarNfseRequest } from './dto/cancelar-nfse.request';
+import { EmitirNfseResponse } from './dto/emitir-nfse.response';
 
 @Controller('nfse')
 export class NfseController {
@@ -11,8 +12,12 @@ export class NfseController {
   constructor(private readonly nfseClient: NfseClientService) {}
 
   @Post('emit')
-  async emitir(@Body() request: EmitirNfseRequest): Promise<unknown> {
-    this.logger.log(`emitir: cnpj=${request.cnpjEmitente} municipio=${request.codigoMunicipio}`);
+  async emitir(
+    @Body() request: EmitirNfseRequest,
+  ): Promise<EmitirNfseResponse> {
+    this.logger.log(
+      `emitir: cTribNac=${request.cTribNac ?? 'emitente'} municipioPrestacao=${request.codigoMunicipioPrestacao ?? 'emitente'}`,
+    );
     return this.nfseClient.emitirNfse(request);
   }
 
@@ -23,7 +28,9 @@ export class NfseController {
   }
 
   @Get('consult/:chaveAcesso')
-  async consultarByPath(@Param('chaveAcesso') chaveAcesso: string): Promise<unknown> {
+  async consultarByPath(
+    @Param('chaveAcesso') chaveAcesso: string,
+  ): Promise<unknown> {
     this.logger.log(`consultarByPath: chave=${chaveAcesso}`);
     return this.nfseClient.consultarNfse(chaveAcesso);
   }

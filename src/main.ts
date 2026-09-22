@@ -1,23 +1,20 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ConsoleLogger, ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const isProd = ['docker', 'prod'].includes(process.env.NODE_ENV ?? '');
+  const logLevels = isProd
+    ? (['log', 'error', 'warn'] as const)
+    : (['log', 'error', 'warn', 'debug', 'verbose'] as const);
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
-    logger: isProd ? ['log', 'error', 'warn'] : ['log', 'error', 'warn', 'debug', 'verbose'],
+    logger: new ConsoleLogger({
+      json: isProd,
+      colors: !isProd,
+      logLevels: [...logLevels],
+    }),
   });
-
-  if (isProd) {
-    app.useLogger({
-      log: (message: string) => console.log(JSON.stringify({ level: 'log', message })),
-      error: (message: string, trace: string) => console.error(JSON.stringify({ level: 'error', message, trace })),
-      warn: (message: string) => console.warn(JSON.stringify({ level: 'warn', message })),
-      debug: () => void 0,
-      verbose: () => void 0,
-    });
-  }
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -31,4 +28,4 @@ async function bootstrap(): Promise<void> {
   new Logger('Bootstrap').log(`costume-rental-nfse listening on :${port}`);
 }
 
-bootstrap();
+void bootstrap();
